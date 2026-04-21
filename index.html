@@ -23,54 +23,59 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-  }
-
-  h2 {
-    margin: 5px 0;
-    color: #5a3b1e;
-    font-size: 1.2rem;
-    flex-shrink: 0;
+    padding: 0 10px;
   }
 
   #scoreBar {
-    position: fixed;
+    position: sticky;
     top: 0;
     width: 100%;
-    background: #efe6c9;
-    border-bottom: 2px solid #c8b68a;
-    padding: 6px;
-    font-size: 14px;
+    background: #f6f1e1;
+    border-bottom: 3px solid #c8b68a;
+    padding: 12px 0;
+    font-size: 18px;
+    color: #5a3b1e;
     z-index: 10;
+    flex-shrink: 0;
+    margin: 0 -10px;
+    padding-left: 10px;
+    padding-right: 10px;
   }
 
   #ui {
     background: #efe6c9;
-    border: 2px solid #c8b68a;
-    border-radius: 8px;
-    padding: 6px;
-    width: 85%;
-    max-width: 350px;
-    margin: 35px auto 5px;
+    border: 3px solid #c8b68a;
+    border-radius: 15px;
+    padding: 15px;
+    margin: 15px 0;
     flex-shrink: 0;
-    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #ui > div {
+    font-size: 16px;
+    color: #5a3b1e;
+    font-weight: bold;
   }
 
   #next {
-    width: 35px;
-    height: 35px;
-    margin-top: 3px;
+    width: 80px;
+    height: 80px;
+    border: 2px solid #c8b68a;
+    border-radius: 8px;
+    background: #ffffff;
   }
 
   #game {
     display: block;
-    border: 2px solid #c8b68a;
+    border: 3px solid #c8b68a;
     background: #ffffff;
     flex: 1;
-    margin: 0 auto 5px;
-    width: 90vw;
-    height: auto;
-    max-width: 350px;
-    max-height: calc(100vh - 160px);
+    width: 100%;
+    max-width: 100%;
   }
 
   #gameOver {
@@ -79,54 +84,68 @@
     left: 50%;
     transform: translate(-50%, -50%);
     background: #fff8dc;
-    border: 2px solid #c8b68a;
-    padding: 15px;
-    border-radius: 8px;
+    border: 3px solid #c8b68a;
+    padding: 25px;
+    border-radius: 10px;
     display: none;
     z-index: 20;
-    font-size: 1rem;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 
   #gameOver button {
-    margin-top: 10px;
-    padding: 8px 16px;
-    font-size: 0.9rem;
+    margin-top: 15px;
+    padding: 12px 25px;
+    font-size: 1rem;
     background: #c8b68a;
     border: none;
     border-radius: 5px;
     cursor: pointer;
     color: white;
+    font-weight: bold;
   }
 
   #gameOver button:active {
     background: #a89468;
   }
 
-  @media (max-width: 480px) {
-    h2 {
-      font-size: 1rem;
-      margin: 3px 0;
+  @media (max-width: 600px) {
+    body {
+      padding: 0 8px;
     }
 
     #scoreBar {
-      font-size: 12px;
-      padding: 4px;
+      font-size: 16px;
+      padding: 10px 0;
+      margin: 0 -8px;
+      padding-left: 8px;
+      padding-right: 8px;
     }
 
     #ui {
-      margin: 30px auto 3px;
-      padding: 4px;
-      width: 80%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 12px;
+      gap: 8px;
+    }
+
+    #ui > div {
+      font-size: 14px;
     }
 
     #next {
-      width: 30px;
-      height: 30px;
+      width: 70px;
+      height: 70px;
     }
 
-    #game {
-      margin: 0 auto 3px;
-      width: 85vw;
+    #gameOver {
+      padding: 20px;
+      font-size: 1rem;
+    }
+
+    #gameOver button {
+      padding: 10px 20px;
+      font-size: 0.9rem;
     }
   }
 </style>
@@ -136,14 +155,12 @@
 
 <div id="scoreBar">分数：0</div>
 
-<h2>合成大招财</h2>
-
 <div id="ui">
   <div>下一个：</div>
-  <canvas id="next" width="40" height="40"></canvas>
+  <canvas id="next" width="80" height="80"></canvas>
 </div>
 
-<canvas id="game" width="350" height="500"></canvas>
+<canvas id="game"></canvas>
 
 <div id="gameOver">
   <div id="finalScore"></div>
@@ -160,9 +177,23 @@ const world = engine.world;
 
 const canvas = document.getElementById("game");
 
-// 根据屏幕大小调整游戏尺寸
-let gameWidth = Math.min(window.innerWidth * 0.9, 350);
-let gameHeight = Math.min(window.innerHeight - 160, 500);
+// 获取容器尺寸
+function getGameDimensions() {
+  const ui = document.getElementById("ui");
+  const scoreBar = document.getElementById("scoreBar");
+  
+  const availableHeight = window.innerHeight - ui.offsetHeight - scoreBar.offsetHeight - 30;
+  const availableWidth = window.innerWidth - 20;
+  
+  return {
+    width: availableWidth,
+    height: Math.max(availableHeight, 300)
+  };
+}
+
+let dims = getGameDimensions();
+let gameWidth = dims.width;
+let gameHeight = dims.height;
 
 canvas.width = gameWidth;
 canvas.height = gameHeight;
@@ -178,7 +209,7 @@ const render = Render.create({
   }
 });
 
-const DEAD_LINE = 100;
+const DEAD_LINE = 80;
 const SAFE_TIME = 1000;
 
 const items = ["1.png","2.png","3.png","4.png","5.png","6.png","7.png","8.png","9.png","10.png"];
@@ -209,7 +240,7 @@ function updateScore(add) {
 }
 
 function createBall(x, level) {
-  let body = Bodies.circle(x, 40, sizeMap[level], {
+  let body = Bodies.circle(x, 50, sizeMap[level], {
     isStatic: true,
     restitution: 0.2
   });
@@ -233,13 +264,13 @@ function drawNext() {
   let canvas = document.getElementById("next");
   let ctx = canvas.getContext("2d");
 
-  ctx.clearRect(0, 0, 40, 40);
+  ctx.clearRect(0, 0, 80, 80);
 
   ctx.save();
   ctx.beginPath();
-  ctx.arc(20, 20, 18, 0, Math.PI * 2);
+  ctx.arc(40, 40, 35, 0, Math.PI * 2);
   ctx.clip();
-  ctx.drawImage(textures[nextLevel], 2, 2, 36, 36);
+  ctx.drawImage(textures[nextLevel], 5, 5, 70, 70);
   ctx.restore();
 }
 
@@ -249,7 +280,7 @@ canvas.addEventListener("mousemove", (e) => {
   let rect = canvas.getBoundingClientRect();
   let x = e.clientX - rect.left;
 
-  Body.setPosition(currentBody, { x: x, y: 40 });
+  Body.setPosition(currentBody, { x: x, y: 50 });
 });
 
 canvas.addEventListener("touchmove", (e) => {
@@ -259,7 +290,7 @@ canvas.addEventListener("touchmove", (e) => {
   let rect = canvas.getBoundingClientRect();
   let x = e.touches[0].clientX - rect.left;
 
-  Body.setPosition(currentBody, { x: x, y: 40 });
+  Body.setPosition(currentBody, { x: x, y: 50 });
 }, { passive: false });
 
 canvas.addEventListener("click", () => {

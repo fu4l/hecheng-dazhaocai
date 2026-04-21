@@ -210,7 +210,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 
 <script>
-const { Engine, Render, World, Bodies, Events, Body, Constraint } = Matter;
+const { Engine, Render, World, Bodies, Events, Body } = Matter;
 
 const engine = Engine.create();
 const world = engine.world;
@@ -253,7 +253,7 @@ const render = Render.create({
 });
 
 const DEAD_LINE = 80;
-const SAFE_TIME = 1000;
+const SAFE_TIME = 500;
 
 const items = ["1.png","2.png","3.png","4.png","5.png","6.png","7.png","8.png","9.png","10.png"];
 
@@ -285,13 +285,14 @@ function updateScore(add) {
 function createBall(x, level) {
   let body = Bodies.circle(x, 50, sizeMap[level], {
     isStatic: true,
-    restitution: 0,
-    friction: 1,
-    frictionAir: 0,
-    frictionStatic: 1
+    restitution: 0.2,
+    friction: 0.8,
+    frictionAir: 0.02,
+    density: 0.001
   });
   body.level = level;
   body.spawnTime = Date.now();
+  body.stillCount = 0;
   return body;
 }
 
@@ -353,6 +354,7 @@ function handleGameAction(e) {
 canvas.addEventListener("click", handleGameAction);
 canvas.addEventListener("touchstart", handleGameAction, { passive: false });
 
+// 碰撞检测 - 合成逻辑
 Events.on(engine, "collisionStart", function(event) {
   event.pairs.forEach(pair => {
     let a = pair.bodyA;
@@ -372,15 +374,16 @@ Events.on(engine, "collisionStart", function(event) {
           (a.position.y + b.position.y) / 2,
           sizeMap[newLevel],
           { 
-            restitution: 0,
-            friction: 1,
-            frictionAir: 0,
-            frictionStatic: 1
+            restitution: 0.2,
+            friction: 0.8,
+            frictionAir: 0.02,
+            density: 0.001
           }
         );
 
         newBody.level = newLevel;
         newBody.spawnTime = Date.now();
+        newBody.stillCount = 0;
         bodies.push(newBody);
         World.add(world, newBody);
 
@@ -390,11 +393,13 @@ Events.on(engine, "collisionStart", function(event) {
   });
 });
 
-// 减速停止移动的物体
+// 物理更新 - 检查游戏结束和物体停止
 Events.on(engine, "afterUpdate", () => {
   if (gameOver) return;
 
   const now = Date.now();
+  const VELOCITY_THRESHOLD = 0.5;
+  const STILL_FRAMES = 5;
 
   bodies.forEach(body => {
     // 检查游戏结束条件
@@ -411,21 +416,24 @@ Events.on(engine, "afterUpdate", () => {
       document.getElementById("gameOver").style.display = "block";
     }
 
-    // 移动中的物体：快速减速
-    if (!body.isStatic && Math.abs(body.velocity.x) > 0.1) {
-      Body.setVelocity(body, {
-        x: body.velocity.x * 0.95,
-        y: body.velocity.y
-      });
-    }
-
-    // 移动速度很低时，完全停止
-    if (!body.isStatic && Math.abs(body.velocity.x) < 0.1 && Math.abs(body.velocity.y) < 0.5) {
-      Body.setVelocity(body, { x: 0, y: 0 });
+    // 检测物体是否停止
+    const speed = Math.sqrt(body.velocity.x ** 2 + body.velocity.y ** 2);
+    
+    if (!body.isStatic && speed < VELOCITY_THRESHOLD) {
+      body.stillCount = (body.stillCount || 0) + 1;
+      
+      // 物体停止几帧后，设置为静态状态
+      if (body.stillCount > STILL_FRAMES) {
+        Body.setVelocity(body, { x: 0, y: 0 });
+        Body.setAngularVelocity(body, 0);
+      }
+    } else {
+      body.stillCount = 0;
     }
   });
 });
 
+// 渲染
 Events.on(render, "afterRender", function() {
   const ctx = render.context;
 

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>合成大招财</title>
+<style>
+  body {
+    margin: 0;
+    background: #f6f1e1;
+    font-family: "STKaiti", serif;
+    text-align: center;
+  }
+
+h2 {
+margin: 60px 0 10px;
+color: #5a3b1e;
+}
+
+#scoreBar {
+position: fixed;
+top: 0;
+width: 100%;
+background: #efe6c9;
+border-bottom: 3px solid #c8b68a;
+padding: 10px;
+font-size: 20px;
+z-index: 10;
+}
+
+#ui {
+background: #efe6c9;
+border: 3px solid #c8b68a;
+border-radius: 10px;
+padding: 10px;
+width: 400px;
+margin: 0 auto 10px;
+}
+
+canvas {
+display: block;
+margin: 0 auto;
+border: 3px solid #c8b68a;
+background: #ffffff;
+}
+
+#gameOver {
+position: absolute;
+top: 40%;
+left: 50%;
+transform: translate(-50%, -50%);
+background: #fff8dc;
+border: 3px solid #c8b68a;
+padding: 20px;
+display: none;
+} </style>
+
+</head>
+<body>
+
+<div id="scoreBar">分数：0</div>
+
+<h2>合成大招财</h2>
+
+<div id="ui">
+  <div>下一个：</div>
+  <canvas id="next" width="60" height="60"></canvas>
+</div>
+
+<canvas id="game" width="400" height="600"></canvas>
+
+<div id="gameOver">
+  <div id="finalScore"></div>
+  <button onclick="location.reload()">重新开始</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+<script>
+const { Engine, Render, World, Bodies, Events, Body } = Matter;
+
+const engine = Engine.create();
+const world = engine.world;
+
+const canvas = document.getElementById("game");
+
+const render = Render.create({
+  canvas: canvas,
+  engine: engine,
+  options: {
+    width: 400,
+    height: 600,
+    wireframes: false,
+    background: "#ffffff"
+  }
+});
+
+const DEAD_LINE = 120;
+const SAFE_TIME = 1000; // 1秒保护时间
+
+const items = ["1.png","2.png","3.png","4.png","5.png","6.png","7.png","8.png","9.png","10.png"];
+
+const textures = items.map(src => {
+  let img = new Image();
+  img.src = "images/" + src;
+  return img;
+});
+
+const sizeMap = [20,24,28,32,36,42,48,56,64,72];
+
+let bodies = [];
+let currentBody = null;
+let nextLevel = Math.floor(Math.random() * 3);
+let score = 0;
+let gameOver = false;
+
+World.add(world, [
+  Bodies.rectangle(200, 610, 400, 20, { isStatic: true }),
+  Bodies.rectangle(-10, 300, 20, 600, { isStatic: true }),
+  Bodies.rectangle(410, 300, 20, 600, { isStatic: true })
+]);
+
+function updateScore(add) {
+  score += add;
+  document.getElementById("scoreBar").innerText = "分数：" + score;
+}
+
+function createBall(x, level) {
+  let body = Bodies.circle(x, 50, sizeMap[level], {
+    isStatic: true,
+    restitution: 0.2
+  });
+  body.level = level;
+  body.spawnTime = Date.now(); // ⭐记录出生时间
+  return body;
+}
+
+function spawnNew() {
+  if (gameOver) return;
+
+  currentBody = createBall(200, nextLevel);
+  bodies.push(currentBody);
+  World.add(world, currentBody);
+
+  nextLevel = Math.floor(Math.random() * 3);
+  drawNext();
+}
+
+function drawNext() {
+  let canvas = document.getElementById("next");
+  let ctx = canvas.getContext("2d");
+
+  ctx.clearRect(0, 0, 60, 60);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(30, 30, 25, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(textures[nextLevel], 5, 5, 50, 50);
+  ctx.restore();
+}
+
+canvas.addEventListener("mousemove", (e) => {
+  if (!currentBody || gameOver) return;
+
+  let rect = canvas.getBoundingClientRect();
+  let x = e.clientX - rect.left;
+
+  Body.setPosition(currentBody, { x: x, y: 50 });
+});
+
+canvas.addEventListener("click", () => {
+  if (!currentBody || gameOver) return;
+
+  Body.setStatic(currentBody, false);
+  currentBody.spawnTime = Date.now(); // ⭐释放时重新计时
+  currentBody = null;
+
+  setTimeout(spawnNew, 400);
+});
+
+// 合成
+Events.on(engine, "collisionStart", function(event) {
+  event.pairs.forEach(pair => {
+    let a = pair.bodyA;
+    let b = pair.bodyB;
+
+    if (a.level !== undefined && b.level !== undefined) {
+      if (a.level === b.level && a.level < items.length - 1) {
+
+        let newLevel = a.level + 1;
+
+        World.remove(world, a);
+        World.remove(world, b);
+        bodies = bodies.filter(obj => obj !== a && obj !== b);
+
+        let newBody = Bodies.circle(
+          (a.position.x + b.position.x) / 2,
+          (a.position.y + b.position.y) / 2,
+          sizeMap[newLevel],
+          { restitution: 0.2 }
+        );
+
+        newBody.level = newLevel;
+        newBody.spawnTime = Date.now(); // ⭐新球也保护
+        bodies.push(newBody);
+        World.add(world, newBody);
+
+        updateScore((newLevel + 1) * 10);
+      }
+    }
+  });
+});
+
+// ⭐最终稳定判定
+Events.on(engine, "afterUpdate", () => {
+  if (gameOver) return;
+
+  const now = Date.now();
+
+  bodies.forEach(body => {
+    if (
+      !body.isStatic &&
+      (now - body.spawnTime > SAFE_TIME) && // ⭐关键保护
+      body.position.y < DEAD_LINE
+    ) {
+      gameOver = true;
+
+      document.getElementById("finalScore").innerText =
+        "最终分数：" + score;
+
+      document.getElementById("gameOver").style.display = "block";
+    }
+  });
+});
+
+// 绘制
+Events.on(render, "afterRender", function() {
+  const ctx = render.context;
+
+  // 红线
+  ctx.beginPath();
+  ctx.moveTo(0, DEAD_LINE);
+  ctx.lineTo(400, DEAD_LINE);
+  ctx.strokeStyle = "red";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  bodies.forEach(body => {
+    if (!body.position || body.level === undefined) return;
+
+    let r = body.circleRadius;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(body.position.x, body.position.y, r, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.drawImage(
+      textures[body.level],
+      body.position.x - r,
+      body.position.y - r,
+      r * 2,
+      r * 2
+    );
+
+    ctx.restore();
+  });
+});
+
+spawnNew();
+
+Engine.run(engine);
+Render.run(render);
+</script>
+
+</body>
+</html>

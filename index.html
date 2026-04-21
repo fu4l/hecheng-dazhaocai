@@ -173,7 +173,6 @@
     }
   }
 
-  /* Safari 底部安全区域 */
   @supports (padding: max(0px)) {
     body {
       padding-bottom: max(60px, env(safe-area-inset-bottom));
@@ -215,6 +214,7 @@ const { Engine, Render, World, Bodies, Events, Body } = Matter;
 
 const engine = Engine.create();
 const world = engine.world;
+world.gravity.y = 1;
 
 const canvas = document.getElementById("game");
 
@@ -285,7 +285,9 @@ function updateScore(add) {
 function createBall(x, level) {
   let body = Bodies.circle(x, 50, sizeMap[level], {
     isStatic: true,
-    restitution: 0.2
+    restitution: 0.8,
+    friction: 0.5,
+    frictionAir: 0.01
   });
   body.level = level;
   body.spawnTime = Date.now();
@@ -317,20 +319,28 @@ function drawNext() {
   ctx.restore();
 }
 
-// 点击时立即设置位置并下落
-function handleGameClick(e) {
+// 点击或触摸时立即下落
+function handleGameAction(e) {
   if (!currentBody || gameOver) return;
 
   let rect = canvas.getBoundingClientRect();
-  let x = e.clientX - rect.left;
+  let x;
+  
+  if (e.touches) {
+    e.preventDefault();
+    x = e.touches[0].clientX - rect.left;
+  } else {
+    x = e.clientX - rect.left;
+  }
   
   // 限制在游戏区域内
   x = Math.max(sizeMap[currentBody.level], Math.min(gameWidth - sizeMap[currentBody.level], x));
 
-  // 立即释放下落
-  Body.setStatic(currentBody, false);
+  // 修改位置
   Body.setPosition(currentBody, { x: x, y: 50 });
-  Body.setVelocity(currentBody, { x: 0, y: 0 });
+  
+  // 关键：改为非静态，让物理引擎接管
+  Body.setStatic(currentBody, false);
   
   currentBody.spawnTime = Date.now();
   currentBody = null;
@@ -338,30 +348,9 @@ function handleGameClick(e) {
   setTimeout(spawnNew, 400);
 }
 
-// 触摸时立即设置位置并下落
-function handleGameTouch(e) {
-  if (!currentBody || gameOver) return;
-  e.preventDefault();
-
-  let rect = canvas.getBoundingClientRect();
-  let x = e.touches[0].clientX - rect.left;
-  
-  // 限制在游戏区域内
-  x = Math.max(sizeMap[currentBody.level], Math.min(gameWidth - sizeMap[currentBody.level], x));
-
-  // 立即释放下落
-  Body.setStatic(currentBody, false);
-  Body.setPosition(currentBody, { x: x, y: 50 });
-  Body.setVelocity(currentBody, { x: 0, y: 0 });
-  
-  currentBody.spawnTime = Date.now();
-  currentBody = null;
-
-  setTimeout(spawnNew, 400);
-}
-
-canvas.addEventListener("click", handleGameClick);
-canvas.addEventListener("touchend", handleGameTouch, { passive: false });
+// 同时支持鼠标点击和触摸
+canvas.addEventListener("click", handleGameAction);
+canvas.addEventListener("touchstart", handleGameAction, { passive: false });
 
 Events.on(engine, "collisionStart", function(event) {
   event.pairs.forEach(pair => {
@@ -381,7 +370,7 @@ Events.on(engine, "collisionStart", function(event) {
           (a.position.x + b.position.x) / 2,
           (a.position.y + b.position.y) / 2,
           sizeMap[newLevel],
-          { restitution: 0.2 }
+          { restitution: 0.8, friction: 0.5, frictionAir: 0.01 }
         );
 
         newBody.level = newLevel;

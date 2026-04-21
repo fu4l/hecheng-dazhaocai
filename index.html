@@ -23,7 +23,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: 0 10px;
+    padding: 0 10px 20px 10px;
   }
 
   #scoreBar {
@@ -42,12 +42,19 @@
     padding-right: 10px;
   }
 
+  h2 {
+    color: #5a3b1e;
+    font-size: 24px;
+    margin: 10px 0;
+    flex-shrink: 0;
+  }
+
   #ui {
     background: #efe6c9;
     border: 3px solid #c8b68a;
     border-radius: 15px;
     padding: 15px;
-    margin: 15px 0;
+    margin: 10px 0;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -67,6 +74,13 @@
     border: 2px solid #c8b68a;
     border-radius: 8px;
     background: #ffffff;
+  }
+
+  #gameContainer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 
   #game {
@@ -93,8 +107,12 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 
+  #finalScore {
+    margin-bottom: 10px;
+    color: #5a3b1e;
+  }
+
   #gameOver button {
-    margin-top: 15px;
     padding: 12px 25px;
     font-size: 1rem;
     background: #c8b68a;
@@ -111,7 +129,7 @@
 
   @media (max-width: 600px) {
     body {
-      padding: 0 8px;
+      padding: 0 8px 15px 8px;
     }
 
     #scoreBar {
@@ -122,9 +140,14 @@
       padding-right: 8px;
     }
 
+    h2 {
+      font-size: 20px;
+      margin: 8px 0;
+    }
+
     #ui {
       padding: 12px;
-      margin: 10px 0;
+      margin: 8px 0;
       border-radius: 12px;
       gap: 8px;
     }
@@ -155,12 +178,16 @@
 
 <div id="scoreBar">分数：0</div>
 
+<h2>合成大招财</h2>
+
 <div id="ui">
   <div>下一个：</div>
   <canvas id="next" width="80" height="80"></canvas>
 </div>
 
-<canvas id="game"></canvas>
+<div id="gameContainer">
+  <canvas id="game"></canvas>
+</div>
 
 <div id="gameOver">
   <div id="finalScore"></div>
@@ -176,13 +203,16 @@ const engine = Engine.create();
 const world = engine.world;
 
 const canvas = document.getElementById("game");
+const gameContainer = document.getElementById("gameContainer");
 
-// 获取容器尺寸
+// 获取游戏区域尺寸
 function getGameDimensions() {
-  const ui = document.getElementById("ui");
   const scoreBar = document.getElementById("scoreBar");
+  const h2 = document.querySelector("h2");
+  const ui = document.getElementById("ui");
   
-  const availableHeight = window.innerHeight - ui.offsetHeight - scoreBar.offsetHeight - 30;
+  const usedHeight = scoreBar.offsetHeight + h2.offsetHeight + ui.offsetHeight + 40;
+  const availableHeight = window.innerHeight - usedHeight;
   const availableWidth = window.innerWidth - 20;
   
   return {

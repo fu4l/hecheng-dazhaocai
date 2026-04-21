@@ -90,6 +90,7 @@
     flex: 1;
     width: 100%;
     max-width: 100%;
+    cursor: crosshair;
   }
 
   #gameOver {
@@ -317,44 +318,51 @@ function drawNext() {
   ctx.restore();
 }
 
-canvas.addEventListener("mousemove", (e) => {
+// 点击时立即设置位置并下落
+function handleGameClick(e) {
   if (!currentBody || gameOver) return;
 
   let rect = canvas.getBoundingClientRect();
   let x = e.clientX - rect.left;
+  
+  // 限制在游戏区域内
+  x = Math.max(sizeMap[currentBody.level], Math.min(gameWidth - sizeMap[currentBody.level], x));
 
+  // 设置位置
   Body.setPosition(currentBody, { x: x, y: 50 });
-});
+  
+  // 立即释放下落
+  Body.setStatic(currentBody, false);
+  currentBody.spawnTime = Date.now();
+  currentBody = null;
 
-canvas.addEventListener("touchmove", (e) => {
+  setTimeout(spawnNew, 400);
+}
+
+// 触摸时立即设置位置并下落
+function handleGameTouch(e) {
   if (!currentBody || gameOver) return;
   e.preventDefault();
 
   let rect = canvas.getBoundingClientRect();
   let x = e.touches[0].clientX - rect.left;
+  
+  // 限制在游戏区域内
+  x = Math.max(sizeMap[currentBody.level], Math.min(gameWidth - sizeMap[currentBody.level], x));
 
+  // 设置位置
   Body.setPosition(currentBody, { x: x, y: 50 });
-}, { passive: false });
-
-canvas.addEventListener("click", () => {
-  if (!currentBody || gameOver) return;
-
+  
+  // 立即释放下落
   Body.setStatic(currentBody, false);
   currentBody.spawnTime = Date.now();
   currentBody = null;
 
   setTimeout(spawnNew, 400);
-});
+}
 
-canvas.addEventListener("touchend", () => {
-  if (!currentBody || gameOver) return;
-
-  Body.setStatic(currentBody, false);
-  currentBody.spawnTime = Date.now();
-  currentBody = null;
-
-  setTimeout(spawnNew, 400);
-});
+canvas.addEventListener("click", handleGameClick);
+canvas.addEventListener("touchend", handleGameTouch, { passive: false });
 
 Events.on(engine, "collisionStart", function(event) {
   event.pairs.forEach(pair => {

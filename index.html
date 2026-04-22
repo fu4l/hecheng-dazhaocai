@@ -448,18 +448,29 @@ function initializeGame() {
   }
 
   function createBall(x, level) {
-    const restitution = currentMode === 'bounce' ? 0.8 : 0.2;
+    let restitution, friction, frictionAir;
+    
+    if (currentMode === 'bounce') {
+      restitution = 0.95;
+      friction = 0.1;
+      frictionAir = 0.001;
+    } else {
+      restitution = 0.2;
+      friction = 0.8;
+      frictionAir = 0.02;
+    }
     
     let body = Bodies.circle(x, 50, sizeMap[level], {
       isStatic: true,
       restitution: restitution,
-      friction: 0.8,
-      frictionAir: currentMode === 'bounce' ? 0.01 : 0.02,
+      friction: friction,
+      frictionAir: frictionAir,
       density: 0.001
     });
     body.level = level;
     body.spawnTime = Date.now();
     body.stillCount = 0;
+    body.bounceEnergy = 0;
     return body;
   }
 
@@ -536,7 +547,17 @@ function initializeGame() {
           World.remove(world, b);
           bodies = bodies.filter(obj => obj !== a && obj !== b);
 
-          const restitution = currentMode === 'bounce' ? 0.8 : 0.2;
+          let restitution, friction, frictionAir;
+          
+          if (currentMode === 'bounce') {
+            restitution = 0.95;
+            friction = 0.1;
+            frictionAir = 0.001;
+          } else {
+            restitution = 0.2;
+            friction = 0.8;
+            frictionAir = 0.02;
+          }
 
           let newBody = Bodies.circle(
             (a.position.x + b.position.x) / 2,
@@ -544,8 +565,8 @@ function initializeGame() {
             sizeMap[newLevel],
             { 
               restitution: restitution,
-              friction: 0.8,
-              frictionAir: currentMode === 'bounce' ? 0.01 : 0.02,
+              friction: friction,
+              frictionAir: frictionAir,
               density: 0.001
             }
           );
@@ -553,10 +574,34 @@ function initializeGame() {
           newBody.level = newLevel;
           newBody.spawnTime = Date.now();
           newBody.stillCount = 0;
+          newBody.bounceEnergy = 0;
           bodies.push(newBody);
           World.add(world, newBody);
 
           updateScore((newLevel + 1) * 10);
+        }
+      }
+    });
+  });
+
+  // 颠勺模式碰撞后持续弹跳
+  Events.on(engine, "collisionActive", function(event) {
+    if (currentMode !== 'bounce') return;
+
+    event.pairs.forEach(pair => {
+      let a = pair.bodyA;
+      let b = pair.bodyB;
+
+      // 如果是球碰到了底部或侧壁
+      if ((a.isStatic || b.isStatic) && (a.level !== undefined || b.level !== undefined)) {
+        let body = a.level !== undefined ? a : b;
+        
+        if (!body.isStatic && Math.abs(body.velocity.y) < 3) {
+          // 持续弹跳，给予向上的速度
+          Body.setVelocity(body, {
+            x: body.velocity.x * 0.95,
+            y: -8
+          });
         }
       }
     });

@@ -105,6 +105,10 @@
     display: none;
   }
 
+  #gamePage.bounce-layout {
+    padding-bottom: 24px;
+  }
+
   #scoreBar {
     position: sticky;
     top: 0;
@@ -136,6 +140,10 @@
     flex-shrink: 0;
   }
 
+  #gamePage.bounce-layout h2 {
+    margin: 8px 0 6px;
+  }
+
   #ui {
     background: #efe6c9;
     border: 3px solid #c8b68a;
@@ -149,10 +157,29 @@
     gap: 10px;
   }
 
+  #gamePage.bounce-layout #ui {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    z-index: 5;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    align-items: flex-start;
+    gap: 8px;
+    pointer-events: none;
+  }
+
   #ui > div {
     font-size: 16px;
     color: #5a3b1e;
     font-weight: bold;
+  }
+
+  #gamePage.bounce-layout #ui > div {
+    font-size: 18px;
   }
 
   #next {
@@ -163,11 +190,18 @@
     background: #ffffff;
   }
 
+  #gamePage.bounce-layout #next {
+    width: 96px;
+    height: 96px;
+    background: rgba(255, 255, 255, 0.96);
+  }
+
   #gameContainer {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    position: relative;
   }
 
   #game {
@@ -232,6 +266,10 @@
       padding: 0 8px 80px 8px;
     }
 
+    #gamePage.bounce-layout {
+      padding-bottom: 20px;
+    }
+
     #scoreBar {
       font-size: 16px;
       padding: 10px 0;
@@ -245,6 +283,10 @@
       margin: 8px 0;
     }
 
+    #gamePage.bounce-layout h2 {
+      margin: 6px 0 4px;
+    }
+
     #ui {
       padding: 12px;
       margin: 8px 0;
@@ -252,13 +294,30 @@
       gap: 8px;
     }
 
+    #gamePage.bounce-layout #ui {
+      top: 14px;
+      left: 14px;
+      padding: 0;
+      margin: 0;
+      gap: 6px;
+    }
+
     #ui > div {
       font-size: 14px;
+    }
+
+    #gamePage.bounce-layout #ui > div {
+      font-size: 16px;
     }
 
     #next {
       width: 70px;
       height: 70px;
+    }
+
+    #gamePage.bounce-layout #next {
+      width: 86px;
+      height: 86px;
     }
 
     #gameOver {
@@ -292,9 +351,17 @@
       padding-bottom: max(60px, env(safe-area-inset-bottom));
     }
 
+    #gamePage.bounce-layout {
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+    }
+
     @media (max-width: 600px) {
       #gamePage {
         padding-bottom: max(80px, env(safe-area-inset-bottom));
+      }
+
+      #gamePage.bounce-layout {
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
       }
     }
   }
@@ -353,12 +420,32 @@ let engine = null;
 let render = null;
 let world = null;
 
+function updateGameLayout(mode) {
+  const gamePage = document.getElementById("gamePage");
+  const gameContainer = document.getElementById("gameContainer");
+  const ui = document.getElementById("ui");
+
+  if (mode === "bounce") {
+    gamePage.classList.add("bounce-layout");
+    if (ui.parentElement !== gameContainer) {
+      gameContainer.appendChild(ui);
+    }
+    return;
+  }
+
+  gamePage.classList.remove("bounce-layout");
+  if (ui.parentElement !== gamePage) {
+    gamePage.insertBefore(ui, gameContainer);
+  }
+}
+
 function startGame(mode) {
   currentMode = mode;
   
   document.getElementById("modeSelectionPage").classList.add("hidden");
   document.getElementById("gamePage").classList.remove("hidden");
-  
+  updateGameLayout(mode);
+
   const modeText = mode === 'normal' ? '普通模式' : '颠勺模式';
   document.getElementById("modeIndicator").innerText = modeText;
   
@@ -370,7 +457,9 @@ function backToMode() {
     Engine.clear(engine);
     Render.stop(render);
   }
-  
+
+  updateGameLayout("normal");
+
   document.getElementById("modeSelectionPage").classList.remove("hidden");
   document.getElementById("gamePage").classList.add("hidden");
   document.getElementById("gameOver").style.display = "none";
@@ -385,14 +474,24 @@ function initializeGame() {
 
   // 获取游戏区域尺寸
   function getGameDimensions() {
+    const gamePage = document.getElementById("gamePage");
     const scoreBar = document.getElementById("scoreBar");
     const h2 = document.querySelector("h2");
     const ui = document.getElementById("ui");
-    
-    const usedHeight = scoreBar.offsetHeight + h2.offsetHeight + ui.offsetHeight + 40;
-    const availableHeight = window.innerHeight - usedHeight;
-    const availableWidth = window.innerWidth - 20;
-    
+    const isBounceLayout = gamePage.classList.contains("bounce-layout");
+    const gamePageStyle = window.getComputedStyle(gamePage);
+    const h2Style = window.getComputedStyle(h2);
+    const uiStyle = window.getComputedStyle(ui);
+    const pagePaddingTop = parseFloat(gamePageStyle.paddingTop) || 0;
+    const pagePaddingBottom = parseFloat(gamePageStyle.paddingBottom) || 0;
+    const pagePaddingLeft = parseFloat(gamePageStyle.paddingLeft) || 0;
+    const pagePaddingRight = parseFloat(gamePageStyle.paddingRight) || 0;
+    const titleMargins = (parseFloat(h2Style.marginTop) || 0) + (parseFloat(h2Style.marginBottom) || 0);
+    const uiMargins = (parseFloat(uiStyle.marginTop) || 0) + (parseFloat(uiStyle.marginBottom) || 0);
+    const overlayReserve = isBounceLayout ? 0 : ui.offsetHeight + uiMargins;
+    const availableHeight = gamePage.clientHeight - pagePaddingTop - pagePaddingBottom - scoreBar.offsetHeight - h2.offsetHeight - titleMargins - overlayReserve;
+    const availableWidth = gamePage.clientWidth - pagePaddingLeft - pagePaddingRight;
+
     return {
       width: availableWidth,
       height: Math.max(availableHeight, 300)

@@ -470,7 +470,7 @@ function initializeGame() {
     body.level = level;
     body.spawnTime = Date.now();
     body.stillCount = 0;
-    body.bounceEnergy = 0;
+    body.lastBouncetime = 0;
     return body;
   }
 
@@ -574,7 +574,7 @@ function initializeGame() {
           newBody.level = newLevel;
           newBody.spawnTime = Date.now();
           newBody.stillCount = 0;
-          newBody.bounceEnergy = 0;
+          newBody.lastBouncetime = 0;
           bodies.push(newBody);
           World.add(world, newBody);
 
@@ -584,9 +584,11 @@ function initializeGame() {
     });
   });
 
-  // 颠勺模式碰撞后持续弹跳
+  // 颠勺模式碰撞后保持微微弹动
   Events.on(engine, "collisionActive", function(event) {
     if (currentMode !== 'bounce') return;
+
+    const now = Date.now();
 
     event.pairs.forEach(pair => {
       let a = pair.bodyA;
@@ -596,12 +598,18 @@ function initializeGame() {
       if ((a.isStatic || b.isStatic) && (a.level !== undefined || b.level !== undefined)) {
         let body = a.level !== undefined ? a : b;
         
-        if (!body.isStatic && Math.abs(body.velocity.y) < 3) {
-          // 持续弹跳，给予向上的速度
-          Body.setVelocity(body, {
-            x: body.velocity.x * 0.95,
-            y: -8
-          });
+        if (!body.isStatic) {
+          // 每200ms弹动一次
+          if (now - body.lastBouncetime > 200) {
+            // 只有当垂直速度非常小时才弹动
+            if (Math.abs(body.velocity.y) < 0.5) {
+              Body.setVelocity(body, {
+                x: body.velocity.x * 0.98,
+                y: -1.5
+              });
+              body.lastBouncetime = now;
+            }
+          }
         }
       }
     });

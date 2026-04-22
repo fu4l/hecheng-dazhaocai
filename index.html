@@ -133,7 +133,7 @@
     justify-content: space-between;
     align-items: center;
     position: sticky;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .game-top-logo {
@@ -142,14 +142,17 @@
     top: 50%;
     transform: translate(-50%, -50%);
     width: min(176px, 44vw);
-    max-height: calc(100% - 8px);
+    max-height: none;
     object-fit: contain;
     pointer-events: none;
+    z-index: 0;
   }
 
   .mode-indicator {
     font-size: 14px;
     color: #c8b68a;
+    position: relative;
+    z-index: 1;
   }
 
   h2 {
@@ -307,7 +310,7 @@
 
     .game-top-logo {
       width: min(144px, 48vw);
-      max-height: calc(100% - 8px);
+      max-height: none;
     }
 
     h2 {

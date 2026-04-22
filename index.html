@@ -23,7 +23,86 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    padding: 0;
+  }
+
+  /* 模式选择页面 */
+  #modeSelectionPage {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #f6f1e1 0%, #efe6c9 100%);
+  }
+
+  #modeSelectionPage.hidden {
+    display: none;
+  }
+
+  .mode-title {
+    font-size: 32px;
+    color: #5a3b1e;
+    margin-bottom: 40px;
+    font-weight: bold;
+  }
+
+  .mode-buttons {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 0 20px;
+  }
+
+  .mode-button {
+    width: 140px;
+    height: 140px;
+    border: 3px solid #c8b68a;
+    border-radius: 15px;
+    background: #fff8dc;
+    font-size: 18px;
+    color: #5a3b1e;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .mode-button:hover {
+    background: #efe6c9;
+    transform: scale(1.05);
+  }
+
+  .mode-button:active {
+    transform: scale(0.98);
+  }
+
+  .mode-icon {
+    font-size: 48px;
+  }
+
+  .mode-name {
+    font-weight: bold;
+    font-size: 16px;
+  }
+
+  /* 游戏页面 */
+  #gamePage {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
     padding: 0 10px 60px 10px;
+  }
+
+  #gamePage.hidden {
+    display: none;
   }
 
   #scoreBar {
@@ -40,6 +119,14 @@
     margin: 0 -10px;
     padding-left: 10px;
     padding-right: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .mode-indicator {
+    font-size: 14px;
+    color: #c8b68a;
   }
 
   h2 {
@@ -122,14 +209,26 @@
     cursor: pointer;
     color: white;
     font-weight: bold;
+    margin-right: 10px;
   }
 
   #gameOver button:active {
     background: #a89468;
   }
 
+  .back-button {
+    margin-top: 10px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    background: #9b9b9b;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
   @media (max-width: 600px) {
-    body {
+    #gamePage {
       padding: 0 8px 80px 8px;
     }
 
@@ -171,15 +270,30 @@
       padding: 10px 20px;
       font-size: 0.9rem;
     }
+
+    .mode-title {
+      font-size: 24px;
+      margin-bottom: 30px;
+    }
+
+    .mode-button {
+      width: 120px;
+      height: 120px;
+      font-size: 16px;
+    }
+
+    .mode-icon {
+      font-size: 40px;
+    }
   }
 
   @supports (padding: max(0px)) {
-    body {
+    #gamePage {
       padding-bottom: max(60px, env(safe-area-inset-bottom));
     }
 
     @media (max-width: 600px) {
-      body {
+      #gamePage {
         padding-bottom: max(80px, env(safe-area-inset-bottom));
       }
     }
@@ -189,22 +303,44 @@
 </head>
 <body>
 
-<div id="scoreBar">分数：0</div>
-
-<h2>合成大招财</h2>
-
-<div id="ui">
-  <div>下一个：</div>
-  <canvas id="next" width="80" height="80"></canvas>
+<!-- 模式选择页面 -->
+<div id="modeSelectionPage">
+  <div class="mode-title">选择游戏模式</div>
+  <div class="mode-buttons">
+    <button class="mode-button" onclick="startGame('normal')">
+      <span class="mode-icon">😊</span>
+      <span class="mode-name">普通模式</span>
+    </button>
+    <button class="mode-button" onclick="startGame('bounce')">
+      <span class="mode-icon">🎪</span>
+      <span class="mode-name">颠勺模式</span>
+    </button>
+  </div>
 </div>
 
-<div id="gameContainer">
-  <canvas id="game"></canvas>
-</div>
+<!-- 游戏页面 -->
+<div id="gamePage" class="hidden">
+  <div id="scoreBar">
+    <span>分数：<span id="scoreValue">0</span></span>
+    <span class="mode-indicator" id="modeIndicator"></span>
+  </div>
 
-<div id="gameOver">
-  <div id="finalScore"></div>
-  <button onclick="location.reload()">重新开始</button>
+  <h2>合成大招财</h2>
+
+  <div id="ui">
+    <div>下一个：</div>
+    <canvas id="next" width="80" height="80"></canvas>
+  </div>
+
+  <div id="gameContainer">
+    <canvas id="game"></canvas>
+  </div>
+
+  <div id="gameOver">
+    <div id="finalScore"></div>
+    <button onclick="backToMode()">返回菜单</button>
+    <button onclick="location.reload()">重新开始</button>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
@@ -212,264 +348,300 @@
 <script>
 const { Engine, Render, World, Bodies, Events, Body } = Matter;
 
-const engine = Engine.create();
-const world = engine.world;
-world.gravity.y = 1;
+let currentMode = null;
+let engine = null;
+let render = null;
+let world = null;
 
-const canvas = document.getElementById("game");
-
-// 获取游戏区域尺寸
-function getGameDimensions() {
-  const scoreBar = document.getElementById("scoreBar");
-  const h2 = document.querySelector("h2");
-  const ui = document.getElementById("ui");
+function startGame(mode) {
+  currentMode = mode;
   
-  const usedHeight = scoreBar.offsetHeight + h2.offsetHeight + ui.offsetHeight + 40;
-  const availableHeight = window.innerHeight - usedHeight;
-  const availableWidth = window.innerWidth - 20;
+  document.getElementById("modeSelectionPage").classList.add("hidden");
+  document.getElementById("gamePage").classList.remove("hidden");
   
-  return {
-    width: availableWidth,
-    height: Math.max(availableHeight, 300)
-  };
-}
-
-let dims = getGameDimensions();
-let gameWidth = dims.width;
-let gameHeight = dims.height;
-
-canvas.width = gameWidth;
-canvas.height = gameHeight;
-
-const render = Render.create({
-  canvas: canvas,
-  engine: engine,
-  options: {
-    width: gameWidth,
-    height: gameHeight,
-    wireframes: false,
-    background: "#ffffff"
-  }
-});
-
-const DEAD_LINE = 80;
-const SAFE_TIME = 500;
-
-const items = ["1.png","2.png","3.png","4.png","5.png","6.png","7.png","8.png","9.png","10.png"];
-
-const textures = items.map(src => {
-  let img = new Image();
-  img.src = "images/" + src;
-  return img;
-});
-
-const sizeMap = [20,24,28,32,36,42,48,56,64,72];
-
-let bodies = [];
-let currentBody = null;
-let nextLevel = Math.floor(Math.random() * 3);
-let score = 0;
-let gameOver = false;
-
-World.add(world, [
-  Bodies.rectangle(gameWidth / 2, gameHeight + 10, gameWidth, 20, { isStatic: true }),
-  Bodies.rectangle(-10, gameHeight / 2, 20, gameHeight, { isStatic: true }),
-  Bodies.rectangle(gameWidth + 10, gameHeight / 2, 20, gameHeight, { isStatic: true })
-]);
-
-function updateScore(add) {
-  score += add;
-  document.getElementById("scoreBar").innerText = "分数：" + score;
-}
-
-function createBall(x, level) {
-  let body = Bodies.circle(x, 50, sizeMap[level], {
-    isStatic: true,
-    restitution: 0.2,
-    friction: 0.8,
-    frictionAir: 0.02,
-    density: 0.001
-  });
-  body.level = level;
-  body.spawnTime = Date.now();
-  body.stillCount = 0;
-  return body;
-}
-
-function spawnNew() {
-  if (gameOver) return;
-
-  currentBody = createBall(gameWidth / 2, nextLevel);
-  bodies.push(currentBody);
-  World.add(world, currentBody);
-
-  nextLevel = Math.floor(Math.random() * 3);
-  drawNext();
-}
-
-function drawNext() {
-  let canvas = document.getElementById("next");
-  let ctx = canvas.getContext("2d");
-
-  ctx.clearRect(0, 0, 80, 80);
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(40, 40, 35, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.drawImage(textures[nextLevel], 5, 5, 70, 70);
-  ctx.restore();
-}
-
-// 点击或触摸时立即下落
-function handleGameAction(e) {
-  if (!currentBody || gameOver) return;
-
-  let rect = canvas.getBoundingClientRect();
-  let x;
+  const modeText = mode === 'normal' ? '普通模式' : '颠勺模式';
+  document.getElementById("modeIndicator").innerText = modeText;
   
-  if (e.touches) {
-    e.preventDefault();
-    x = e.touches[0].clientX - rect.left;
-  } else {
-    x = e.clientX - rect.left;
+  initializeGame();
+}
+
+function backToMode() {
+  if (engine) {
+    Engine.clear(engine);
+    Render.stop(render);
   }
   
-  // 限制在游戏区域内
-  x = Math.max(sizeMap[currentBody.level], Math.min(gameWidth - sizeMap[currentBody.level], x));
-
-  // 修改位置
-  Body.setPosition(currentBody, { x: x, y: 50 });
-  
-  // 改为非静态，让物理引擎接管
-  Body.setStatic(currentBody, false);
-  
-  currentBody.spawnTime = Date.now();
-  currentBody = null;
-
-  setTimeout(spawnNew, 400);
+  document.getElementById("modeSelectionPage").classList.remove("hidden");
+  document.getElementById("gamePage").classList.add("hidden");
+  document.getElementById("gameOver").style.display = "none";
 }
 
-// 同时支持鼠标点击和触摸
-canvas.addEventListener("click", handleGameAction);
-canvas.addEventListener("touchstart", handleGameAction, { passive: false });
+function initializeGame() {
+  engine = Engine.create();
+  world = engine.world;
+  world.gravity.y = 1;
 
-// 碰撞检测 - 合成逻辑
-Events.on(engine, "collisionStart", function(event) {
-  event.pairs.forEach(pair => {
-    let a = pair.bodyA;
-    let b = pair.bodyB;
+  const canvas = document.getElementById("game");
 
-    if (a.level !== undefined && b.level !== undefined) {
-      if (a.level === b.level && a.level < items.length - 1) {
-
-        let newLevel = a.level + 1;
-
-        World.remove(world, a);
-        World.remove(world, b);
-        bodies = bodies.filter(obj => obj !== a && obj !== b);
-
-        let newBody = Bodies.circle(
-          (a.position.x + b.position.x) / 2,
-          (a.position.y + b.position.y) / 2,
-          sizeMap[newLevel],
-          { 
-            restitution: 0.2,
-            friction: 0.8,
-            frictionAir: 0.02,
-            density: 0.001
-          }
-        );
-
-        newBody.level = newLevel;
-        newBody.spawnTime = Date.now();
-        newBody.stillCount = 0;
-        bodies.push(newBody);
-        World.add(world, newBody);
-
-        updateScore((newLevel + 1) * 10);
-      }
-    }
-  });
-});
-
-// 物理更新 - 检查游戏结束和物体停止
-Events.on(engine, "afterUpdate", () => {
-  if (gameOver) return;
-
-  const now = Date.now();
-  const VELOCITY_THRESHOLD = 0.5;
-  const STILL_FRAMES = 5;
-
-  bodies.forEach(body => {
-    // 检查游戏结束条件
-    if (
-      !body.isStatic &&
-      (now - body.spawnTime > SAFE_TIME) &&
-      body.position.y < DEAD_LINE
-    ) {
-      gameOver = true;
-
-      document.getElementById("finalScore").innerText =
-        "最终分数：" + score;
-
-      document.getElementById("gameOver").style.display = "block";
-    }
-
-    // 检测物体是否停止
-    const speed = Math.sqrt(body.velocity.x ** 2 + body.velocity.y ** 2);
+  // 获取游戏区域尺寸
+  function getGameDimensions() {
+    const scoreBar = document.getElementById("scoreBar");
+    const h2 = document.querySelector("h2");
+    const ui = document.getElementById("ui");
     
-    if (!body.isStatic && speed < VELOCITY_THRESHOLD) {
-      body.stillCount = (body.stillCount || 0) + 1;
-      
-      // 物体停止几帧后，设置为静态状态
-      if (body.stillCount > STILL_FRAMES) {
-        Body.setVelocity(body, { x: 0, y: 0 });
-        Body.setAngularVelocity(body, 0);
-      }
-    } else {
-      body.stillCount = 0;
+    const usedHeight = scoreBar.offsetHeight + h2.offsetHeight + ui.offsetHeight + 40;
+    const availableHeight = window.innerHeight - usedHeight;
+    const availableWidth = window.innerWidth - 20;
+    
+    return {
+      width: availableWidth,
+      height: Math.max(availableHeight, 300)
+    };
+  }
+
+  let dims = getGameDimensions();
+  let gameWidth = dims.width;
+  let gameHeight = dims.height;
+
+  canvas.width = gameWidth;
+  canvas.height = gameHeight;
+
+  render = Render.create({
+    canvas: canvas,
+    engine: engine,
+    options: {
+      width: gameWidth,
+      height: gameHeight,
+      wireframes: false,
+      background: "#ffffff"
     }
   });
-});
 
-// 渲染
-Events.on(render, "afterRender", function() {
-  const ctx = render.context;
+  const DEAD_LINE = 80;
+  const SAFE_TIME = currentMode === 'normal' ? 500 : 300;
 
-  ctx.beginPath();
-  ctx.moveTo(0, DEAD_LINE);
-  ctx.lineTo(gameWidth, DEAD_LINE);
-  ctx.strokeStyle = "red";
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  const items = ["1.png","2.png","3.png","4.png","5.png","6.png","7.png","8.png","9.png","10.png"];
 
-  bodies.forEach(body => {
-    if (!body.position || body.level === undefined) return;
+  const textures = items.map(src => {
+    let img = new Image();
+    img.src = "images/" + src;
+    return img;
+  });
 
-    let r = body.circleRadius;
+  const sizeMap = [20,24,28,32,36,42,48,56,64,72];
+
+  let bodies = [];
+  let currentBody = null;
+  let nextLevel = Math.floor(Math.random() * 3);
+  let score = 0;
+  let gameOver = false;
+
+  World.add(world, [
+    Bodies.rectangle(gameWidth / 2, gameHeight + 10, gameWidth, 20, { isStatic: true }),
+    Bodies.rectangle(-10, gameHeight / 2, 20, gameHeight, { isStatic: true }),
+    Bodies.rectangle(gameWidth + 10, gameHeight / 2, 20, gameHeight, { isStatic: true })
+  ]);
+
+  function updateScore(add) {
+    score += add;
+    document.getElementById("scoreValue").innerText = score;
+  }
+
+  function createBall(x, level) {
+    const restitution = currentMode === 'bounce' ? 0.8 : 0.2;
+    
+    let body = Bodies.circle(x, 50, sizeMap[level], {
+      isStatic: true,
+      restitution: restitution,
+      friction: 0.8,
+      frictionAir: currentMode === 'bounce' ? 0.01 : 0.02,
+      density: 0.001
+    });
+    body.level = level;
+    body.spawnTime = Date.now();
+    body.stillCount = 0;
+    return body;
+  }
+
+  function spawnNew() {
+    if (gameOver) return;
+
+    currentBody = createBall(gameWidth / 2, nextLevel);
+    bodies.push(currentBody);
+    World.add(world, currentBody);
+
+    nextLevel = Math.floor(Math.random() * 3);
+    drawNext();
+  }
+
+  function drawNext() {
+    let canvas = document.getElementById("next");
+    let ctx = canvas.getContext("2d");
+
+    ctx.clearRect(0, 0, 80, 80);
 
     ctx.save();
     ctx.beginPath();
-    ctx.arc(body.position.x, body.position.y, r, 0, Math.PI * 2);
+    ctx.arc(40, 40, 35, 0, Math.PI * 2);
     ctx.clip();
-
-    ctx.drawImage(
-      textures[body.level],
-      body.position.x - r,
-      body.position.y - r,
-      r * 2,
-      r * 2
-    );
-
+    ctx.drawImage(textures[nextLevel], 5, 5, 70, 70);
     ctx.restore();
+  }
+
+  // 点击或触摸时立即下落
+  function handleGameAction(e) {
+    if (!currentBody || gameOver) return;
+
+    let rect = canvas.getBoundingClientRect();
+    let x;
+    
+    if (e.touches) {
+      e.preventDefault();
+      x = e.touches[0].clientX - rect.left;
+    } else {
+      x = e.clientX - rect.left;
+    }
+    
+    // 限制在游戏区域内
+    x = Math.max(sizeMap[currentBody.level], Math.min(gameWidth - sizeMap[currentBody.level], x));
+
+    // 修改位置
+    Body.setPosition(currentBody, { x: x, y: 50 });
+    
+    // 改为非静态，让物理引擎接管
+    Body.setStatic(currentBody, false);
+    
+    currentBody.spawnTime = Date.now();
+    currentBody = null;
+
+    setTimeout(spawnNew, 400);
+  }
+
+  // 同时支持鼠标点击和触摸
+  canvas.addEventListener("click", handleGameAction);
+  canvas.addEventListener("touchstart", handleGameAction, { passive: false });
+
+  // 碰撞检测 - 合成逻辑
+  Events.on(engine, "collisionStart", function(event) {
+    event.pairs.forEach(pair => {
+      let a = pair.bodyA;
+      let b = pair.bodyB;
+
+      if (a.level !== undefined && b.level !== undefined) {
+        if (a.level === b.level && a.level < items.length - 1) {
+
+          let newLevel = a.level + 1;
+
+          World.remove(world, a);
+          World.remove(world, b);
+          bodies = bodies.filter(obj => obj !== a && obj !== b);
+
+          const restitution = currentMode === 'bounce' ? 0.8 : 0.2;
+
+          let newBody = Bodies.circle(
+            (a.position.x + b.position.x) / 2,
+            (a.position.y + b.position.y) / 2,
+            sizeMap[newLevel],
+            { 
+              restitution: restitution,
+              friction: 0.8,
+              frictionAir: currentMode === 'bounce' ? 0.01 : 0.02,
+              density: 0.001
+            }
+          );
+
+          newBody.level = newLevel;
+          newBody.spawnTime = Date.now();
+          newBody.stillCount = 0;
+          bodies.push(newBody);
+          World.add(world, newBody);
+
+          updateScore((newLevel + 1) * 10);
+        }
+      }
+    });
   });
-});
 
-spawnNew();
+  // 物理更新 - 检查游戏结束和物体停止
+  Events.on(engine, "afterUpdate", () => {
+    if (gameOver) return;
 
-Engine.run(engine);
-Render.run(render);
+    const now = Date.now();
+    const VELOCITY_THRESHOLD = 0.5;
+    const STILL_FRAMES = 5;
+
+    bodies.forEach(body => {
+      // 检查游戏结束条件
+      if (
+        !body.isStatic &&
+        (now - body.spawnTime > SAFE_TIME) &&
+        body.position.y < DEAD_LINE
+      ) {
+        gameOver = true;
+
+        document.getElementById("finalScore").innerText =
+          "最终分数：" + score;
+
+        document.getElementById("gameOver").style.display = "block";
+      }
+
+      // 检测物体是否停止（仅普通模式）
+      if (currentMode === 'normal') {
+        const speed = Math.sqrt(body.velocity.x ** 2 + body.velocity.y ** 2);
+        
+        if (!body.isStatic && speed < VELOCITY_THRESHOLD) {
+          body.stillCount = (body.stillCount || 0) + 1;
+          
+          // 物体停止几帧后，设置为静态状态
+          if (body.stillCount > STILL_FRAMES) {
+            Body.setVelocity(body, { x: 0, y: 0 });
+            Body.setAngularVelocity(body, 0);
+          }
+        } else {
+          body.stillCount = 0;
+        }
+      }
+    });
+  });
+
+  // 渲染
+  Events.on(render, "afterRender", function() {
+    const ctx = render.context;
+
+    ctx.beginPath();
+    ctx.moveTo(0, DEAD_LINE);
+    ctx.lineTo(gameWidth, DEAD_LINE);
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    bodies.forEach(body => {
+      if (!body.position || body.level === undefined) return;
+
+      let r = body.circleRadius;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(body.position.x, body.position.y, r, 0, Math.PI * 2);
+      ctx.clip();
+
+      ctx.drawImage(
+        textures[body.level],
+        body.position.x - r,
+        body.position.y - r,
+        r * 2,
+        r * 2
+      );
+
+      ctx.restore();
+    });
+  });
+
+  spawnNew();
+
+  Engine.run(engine);
+  Render.run(render);
+}
 </script>
 
 </body>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 
 <html lang="zh">
 <head>
@@ -155,17 +155,17 @@
 
   #gamePage.bounce-layout #ui {
     position: absolute;
-    top: 12px;
-    left: 18px;
+    top: 22px;
+    left: 34px;
     z-index: 5;
     margin: 0;
     padding: 0;
     border: none;
     border-radius: 0;
     background: transparent;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
     pointer-events: none;
   }
 
@@ -289,8 +289,8 @@
     }
 
     #gamePage.bounce-layout #ui {
-      top: 10px;
-      left: 12px;
+      top: 16px;
+      left: 22px;
       padding: 0;
       margin: 0;
       gap: 6px;
@@ -491,10 +491,11 @@ function initializeGame() {
 
   function configureNextPreview() {
     if (currentMode === "bounce") {
-      const previewTop = window.innerWidth <= 600 ? 10 : 12;
-      const previewMargin = 10;
-      const previewLimit = Math.floor(gameHeight / 5) - previewTop - previewMargin;
-      const previewSize = Math.max(34, Math.min(56, previewLimit));
+      const previewTop = window.innerWidth <= 600 ? 16 : 22;
+      const labelHeight = window.innerWidth <= 600 ? 22 : 26;
+      const previewMargin = 12;
+      const previewLimit = Math.floor(gameHeight / 5) - previewTop - labelHeight - previewMargin;
+      const previewSize = Math.max(34, Math.min(52, previewLimit));
 
       gamePage.style.setProperty("--bounce-next-size", previewSize + "px");
       nextCanvas.width = previewSize;
@@ -525,6 +526,7 @@ function initializeGame() {
 
   const DEAD_LINE = currentMode === 'bounce' ? Math.round(gameHeight / 5) : 80;
   const SAFE_TIME = currentMode === 'normal' ? 500 : 300;
+  const LINE_STAY_TIME = currentMode === 'bounce' ? 1000 : 800;
 
   const items = ["1.png","2.png","3.png","4.png","5.png","6.png","7.png","8.png","9.png","10.png"];
 
@@ -576,6 +578,7 @@ function initializeGame() {
     body.level = level;
     body.spawnTime = Date.now();
     body.stillCount = 0;
+    body.aboveLineStart = null;
     return body;
   }
 
@@ -682,6 +685,7 @@ function initializeGame() {
           newBody.level = newLevel;
           newBody.spawnTime = Date.now();
           newBody.stillCount = 0;
+          newBody.aboveLineStart = null;
           bodies.push(newBody);
           World.add(world, newBody);
 
@@ -729,22 +733,22 @@ function initializeGame() {
     const now = Date.now();
     const VELOCITY_THRESHOLD = 0.5;
     const STILL_FRAMES = 5;
+    let shouldEndGame = false;
 
     bodies.forEach(body => {
-      // 检查游戏结束条件
-      if (
-        !body.isStatic &&
-        (now - body.spawnTime > SAFE_TIME) &&
-        body.position.y < DEAD_LINE
-      ) {
-        gameOver = true;
+      const bodyTop = body.position.y - body.circleRadius;
+      const isAboveDeadLine = bodyTop < DEAD_LINE;
+      const isReleasedBody = body !== currentBody;
 
-        document.getElementById("finalScore").innerText =
-          "最终分数：" + score;
+      if (isReleasedBody && (now - body.spawnTime > SAFE_TIME) && isAboveDeadLine) {
+        body.aboveLineStart = body.aboveLineStart || now;
 
-        document.getElementById("gameOver").style.display = "block";
+        if (now - body.aboveLineStart >= LINE_STAY_TIME) {
+          shouldEndGame = true;
+        }
+      } else {
+        body.aboveLineStart = null;
       }
-
       // 检测物体是否停止（仅普通模式）
       if (currentMode === 'normal') {
         const speed = Math.sqrt(body.velocity.x ** 2 + body.velocity.y ** 2);
@@ -762,6 +766,13 @@ function initializeGame() {
         }
       }
     });
+
+    if (shouldEndGame) {
+      gameOver = true;
+      document.getElementById("finalScore").innerText =
+        "最终分数：" + score;
+      document.getElementById("gameOver").style.display = "block";
+    }
   });
 
   // 渲染

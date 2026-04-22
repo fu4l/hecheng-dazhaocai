@@ -451,9 +451,9 @@ function initializeGame() {
     let restitution, friction, frictionAir;
     
     if (currentMode === 'bounce') {
-      restitution = 0.3;
-      friction = 0.1;
-      frictionAir = 0.001;
+      restitution = 0.7;
+      friction = 0.3;
+      frictionAir = 0.005;
     } else {
       restitution = 0.2;
       friction = 0.8;
@@ -470,7 +470,6 @@ function initializeGame() {
     body.level = level;
     body.spawnTime = Date.now();
     body.stillCount = 0;
-    body.lastBouncetime = 0;
     return body;
   }
 
@@ -513,7 +512,7 @@ function initializeGame() {
       x = e.clientX - rect.left;
     }
     
-    // 限���在游戏区域内
+    // 限制在游戏区域内
     x = Math.max(sizeMap[currentBody.level], Math.min(gameWidth - sizeMap[currentBody.level], x));
 
     // 修改位置
@@ -550,9 +549,9 @@ function initializeGame() {
           let restitution, friction, frictionAir;
           
           if (currentMode === 'bounce') {
-            restitution = 0.3;
-            friction = 0.1;
-            frictionAir = 0.001;
+            restitution = 0.7;
+            friction = 0.3;
+            frictionAir = 0.005;
           } else {
             restitution = 0.2;
             friction = 0.8;
@@ -574,42 +573,10 @@ function initializeGame() {
           newBody.level = newLevel;
           newBody.spawnTime = Date.now();
           newBody.stillCount = 0;
-          newBody.lastBouncetime = 0;
           bodies.push(newBody);
           World.add(world, newBody);
 
           updateScore((newLevel + 1) * 10);
-        }
-      }
-    });
-  });
-
-  // 颠勺模式碰撞后保持微微弹动
-  Events.on(engine, "collisionActive", function(event) {
-    if (currentMode !== 'bounce') return;
-
-    const now = Date.now();
-
-    event.pairs.forEach(pair => {
-      let a = pair.bodyA;
-      let b = pair.bodyB;
-
-      // 如果是球碰到了底部或侧壁
-      if ((a.isStatic || b.isStatic) && (a.level !== undefined || b.level !== undefined)) {
-        let body = a.level !== undefined ? a : b;
-        
-        if (!body.isStatic) {
-          // 每200ms弹动一次
-          if (now - body.lastBouncetime > 200) {
-            // 只有当垂直速度非常小时才弹动
-            if (Math.abs(body.velocity.y) < 0.5) {
-              Body.setVelocity(body, {
-                x: body.velocity.x * 0.98,
-                y: -1.5
-              });
-              body.lastBouncetime = now;
-            }
-          }
         }
       }
     });

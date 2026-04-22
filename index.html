@@ -105,10 +105,6 @@
     display: none;
   }
 
-  #gamePage.bounce-layout {
-    padding-bottom: 24px;
-  }
-
   #scoreBar {
     position: sticky;
     top: 0;
@@ -159,7 +155,7 @@
 
   #gamePage.bounce-layout #ui {
     position: absolute;
-    top: 18px;
+    top: 12px;
     left: 18px;
     z-index: 5;
     margin: 0;
@@ -167,7 +163,8 @@
     border: none;
     border-radius: 0;
     background: transparent;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     gap: 8px;
     pointer-events: none;
   }
@@ -179,7 +176,8 @@
   }
 
   #gamePage.bounce-layout #ui > div {
-    font-size: 18px;
+    font-size: 16px;
+    line-height: 1;
   }
 
   #next {
@@ -191,8 +189,8 @@
   }
 
   #gamePage.bounce-layout #next {
-    width: 96px;
-    height: 96px;
+    width: var(--bounce-next-size, 48px);
+    height: var(--bounce-next-size, 48px);
     background: rgba(255, 255, 255, 0.96);
   }
 
@@ -266,10 +264,6 @@
       padding: 0 8px 80px 8px;
     }
 
-    #gamePage.bounce-layout {
-      padding-bottom: 20px;
-    }
-
     #scoreBar {
       font-size: 16px;
       padding: 10px 0;
@@ -295,8 +289,8 @@
     }
 
     #gamePage.bounce-layout #ui {
-      top: 14px;
-      left: 14px;
+      top: 10px;
+      left: 12px;
       padding: 0;
       margin: 0;
       gap: 6px;
@@ -307,7 +301,7 @@
     }
 
     #gamePage.bounce-layout #ui > div {
-      font-size: 16px;
+      font-size: 14px;
     }
 
     #next {
@@ -316,8 +310,8 @@
     }
 
     #gamePage.bounce-layout #next {
-      width: 86px;
-      height: 86px;
+      width: var(--bounce-next-size, 40px);
+      height: var(--bounce-next-size, 40px);
     }
 
     #gameOver {
@@ -351,17 +345,9 @@
       padding-bottom: max(60px, env(safe-area-inset-bottom));
     }
 
-    #gamePage.bounce-layout {
-      padding-bottom: max(24px, env(safe-area-inset-bottom));
-    }
-
     @media (max-width: 600px) {
       #gamePage {
         padding-bottom: max(80px, env(safe-area-inset-bottom));
-      }
-
-      #gamePage.bounce-layout {
-        padding-bottom: max(20px, env(safe-area-inset-bottom));
       }
     }
   }
@@ -471,10 +457,11 @@ function initializeGame() {
   world.gravity.y = 1;
 
   const canvas = document.getElementById("game");
+  const nextCanvas = document.getElementById("next");
+  const gamePage = document.getElementById("gamePage");
 
   // 获取游戏区域尺寸
   function getGameDimensions() {
-    const gamePage = document.getElementById("gamePage");
     const scoreBar = document.getElementById("scoreBar");
     const h2 = document.querySelector("h2");
     const ui = document.getElementById("ui");
@@ -502,6 +489,26 @@ function initializeGame() {
   let gameWidth = dims.width;
   let gameHeight = dims.height;
 
+  function configureNextPreview() {
+    if (currentMode === "bounce") {
+      const previewTop = window.innerWidth <= 600 ? 10 : 12;
+      const previewMargin = 10;
+      const previewLimit = Math.floor(gameHeight / 5) - previewTop - previewMargin;
+      const previewSize = Math.max(34, Math.min(56, previewLimit));
+
+      gamePage.style.setProperty("--bounce-next-size", previewSize + "px");
+      nextCanvas.width = previewSize;
+      nextCanvas.height = previewSize;
+      return;
+    }
+
+    gamePage.style.removeProperty("--bounce-next-size");
+    nextCanvas.width = 80;
+    nextCanvas.height = 80;
+  }
+
+  configureNextPreview();
+
   canvas.width = gameWidth;
   canvas.height = gameHeight;
 
@@ -516,7 +523,7 @@ function initializeGame() {
     }
   });
 
-  const DEAD_LINE = 80;
+  const DEAD_LINE = currentMode === 'bounce' ? Math.round(gameHeight / 5) : 80;
   const SAFE_TIME = currentMode === 'normal' ? 500 : 300;
 
   const items = ["1.png","2.png","3.png","4.png","5.png","6.png","7.png","8.png","9.png","10.png"];
@@ -586,14 +593,17 @@ function initializeGame() {
   function drawNext() {
     let canvas = document.getElementById("next");
     let ctx = canvas.getContext("2d");
+    const size = canvas.width;
+    const padding = Math.max(4, Math.floor(size * 0.08));
+    const radius = (size / 2) - padding;
 
-    ctx.clearRect(0, 0, 80, 80);
+    ctx.clearRect(0, 0, size, size);
 
     ctx.save();
     ctx.beginPath();
-    ctx.arc(40, 40, 35, 0, Math.PI * 2);
+    ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(textures[nextLevel], 5, 5, 70, 70);
+    ctx.drawImage(textures[nextLevel], padding, padding, size - padding * 2, size - padding * 2);
     ctx.restore();
   }
 
